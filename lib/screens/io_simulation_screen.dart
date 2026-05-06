@@ -1,3 +1,4 @@
+// ===== FILE: lib/screens/io_simulation_screen.dart =====
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,15 +18,32 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
   bool _isAnimating = false;
   double _cpuUtilization = 0;
   String _currentStage = '';
+  String _narratorText = '';
   final List<String> _modes = ['Programmed I/O', 'Interrupt-Driven', 'DMA'];
   final List<String> _devices = ['Keyboard', 'Disk', 'Network'];
   int _selectedDevice = 0;
   late AnimationController _progressController;
   Timer? _simulationTimer;
+  int _wastedCycles = 0;
+  int _cpuFreedCycles = 0;
+  final List<String> _stageHistory = [];
+
+  static const List<String> _narratorPhrases = [
+    'Imagine you\'re waiting for a pizza delivery. With Programmed I/O, you stand at the door and check every 30 seconds. You can\'t do anything else.',
+    'With interrupt-driven I/O, you go about your day and the doorbell rings when the pizza arrives. You only stop when needed.',
+    'With DMA (Direct Memory Access), you hire an assistant to handle the delivery entirely. You never even need to go to the door.',
+  ];
+
+  static const Map<String, String> _cpuUtilLabels = {
+    'low': 'CPU mostly idle — wasting potential',
+    'medium': 'CPU doing real work',
+    'high': 'CPU fully busy — but is it useful work?',
+  };
 
   @override
   void initState() {
     super.initState();
+    _narratorText = _narratorPhrases[0];
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -48,6 +66,10 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     setState(() {
       _isAnimating = true;
       _cpuUtilization = 0;
+      _wastedCycles = 0;
+      _cpuFreedCycles = 0;
+      _stageHistory.clear();
+      _narratorText = _narratorPhrases[_selectedMode];
     });
     _progressController.forward(from: 0);
     
@@ -60,6 +82,7 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     
     _simulationTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       step++;
+      _stageHistory.add(_currentStage);
       
       switch (_selectedMode) {
         case 0:
@@ -88,18 +111,22 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         case 1:
           _currentStage = 'CPU checks device status';
           _cpuUtilization = 0.9;
+          _wastedCycles += 1;
           break;
         case 2:
           _currentStage = 'Device busy - CPU waits...';
           _cpuUtilization = 0.3;
+          _wastedCycles += 2;
           break;
         case 3:
           _currentStage = 'CPU polls again...';
           _cpuUtilization = 0.8;
+          _wastedCycles += 1;
           break;
         case 4:
           _currentStage = 'Still waiting...';
           _cpuUtilization = 0.2;
+          _wastedCycles += 3;
           break;
         case 5:
           _currentStage = 'Device ready';
@@ -127,6 +154,7 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         case 1:
           _currentStage = 'CPU executes other tasks';
           _cpuUtilization = 0.7;
+          _cpuFreedCycles += 2;
           break;
         case 2:
           _currentStage = 'Device finishes (interrupt!)';
@@ -155,6 +183,7 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         case 8:
           _currentStage = 'Resume normal execution';
           _cpuUtilization = 0;
+          _cpuFreedCycles += 4;
           break;
       }
     });
@@ -170,14 +199,17 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         case 2:
           _currentStage = 'CPU continues work';
           _cpuUtilization = 0.2;
+          _cpuFreedCycles += 3;
           break;
         case 3:
           _currentStage = 'DMA transfers data';
           _cpuUtilization = 0.15;
+          _cpuFreedCycles += 2;
           break;
         case 4:
           _currentStage = 'DMA sends interrupt';
           _cpuUtilization = 0.3;
+          _cpuFreedCycles += 1;
           break;
       }
     });
@@ -200,21 +232,71 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildNarratorPanel(),
+            const SizedBox(height: 16),
             _buildModeSelector(),
             const SizedBox(height: 16),
             _buildDeviceSelector(),
             const SizedBox(height: 16),
-            _buildArchitectureDiagram(),
+            _buildArchitectureFlow(),
             const SizedBox(height: 16),
             _buildStatusPanel(),
             const SizedBox(height: 16),
-            _buildCPUUtilization(),
+            _buildCPUUtilizationBar(),
             const SizedBox(height: 16),
-            _buildExplanation(),
+            if (_selectedMode == 0 && _wastedCycles > 0) _buildWastedCounter(),
+            if (_selectedMode == 2 && _cpuFreedCycles > 0) _buildCPUFreedCounter(),
             const SizedBox(height: 16),
             _buildControls(),
+            const SizedBox(height: 16),
+            _buildColorLegend(),
+            const SizedBox(height: 16),
+            _buildComparisonCard(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNarratorPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2035),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb, color: Color(0xFFF59E0B), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What\'s happening?',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFF59E0B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _narratorText.isEmpty ? _narratorPhrases[_selectedMode] : _narratorText,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 15,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -237,13 +319,21 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
           const SizedBox(height: 12),
           SegmentedButton<int>(
             segments: _modes
+                .asMap()
+                .entries
                 .map((m) => ButtonSegment(
-                      value: _modes.indexOf(m),
-                      label: Text(m, style: const TextStyle(fontSize: 12)),
+                      value: m.key,
+                      label: Text(m.value, style: const TextStyle(fontSize: 12)),
                     ))
                 .toList(),
             selected: {_selectedMode},
-            onSelectionChanged: (set) => setState(() => _selectedMode = set.first),
+            onSelectionChanged: (set) {
+              setState(() {
+                _selectedMode = set.first;
+                _narratorText = _narratorPhrases[set.first];
+                _resetSimulation();
+              });
+            },
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
@@ -256,6 +346,17 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         ],
       ),
     );
+  }
+
+  void _resetSimulation() {
+    setState(() {
+      _cpuUtilization = 0;
+      _currentStage = '';
+      _wastedCycles = 0;
+      _cpuFreedCycles = 0;
+      _stageHistory.clear();
+    });
+    _progressController.reset();
   }
 
   Widget _buildDeviceSelector() {
@@ -327,86 +428,104 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     }
   }
 
-  Widget _buildArchitectureDiagram() {
+  Widget _buildArchitectureFlow() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.panelDecoration,
       child: Column(
         children: [
-          Text(
-            'System Architecture',
-            style: GoogleFonts.rajdhani(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Data Flow',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              if (_isAnimating)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentAmber.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Animating...',
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 12,
+                      color: AppTheme.accentAmber,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNode('CPU', Icons.memory, AppTheme.accentCyan, true),
-              _buildBus(),
-              _buildNode('I/O\nController', Icons.settings_input_component, AppTheme.accentAmber, _selectedMode == 2),
-              _buildBus(),
-              _buildNode(_devices[_selectedDevice], _getDeviceIcon(_devices[_selectedDevice]), AppTheme.accentGreen, false),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildFlowNode('CPU', Icons.memory, AppTheme.accentCyan, _isAnimating && _currentStage.contains('CPU')),
+                _buildFlowArrow(),
+                _buildFlowNode('I/O\nController', Icons.settings_input_component, AppTheme.accentAmber, _isAnimating && _currentStage.contains('DMA')),
+                _buildFlowArrow(),
+                _buildFlowNode(_devices[_selectedDevice], _getDeviceIcon(_devices[_selectedDevice]), AppTheme.accentGreen, _isAnimating && _currentStage.contains('Device')),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNode(String label, IconData icon, Color color, bool isActive) {
-    return Column(
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isActive ? color : color.withOpacity(0.5),
-              width: isActive ? 2 : 1,
+  Widget _buildFlowNode(String label, IconData icon, Color color, bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isActive ? color.withOpacity(0.2) : AppTheme.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive ? color : color.withOpacity(0.5),
+          width: isActive ? 2 : 1,
+        ),
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.5),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.rajdhani(
+              fontSize: 11,
+              color: isActive ? color : AppTheme.textSecondary,
             ),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: color.withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
+            textAlign: TextAlign.center,
           ),
-          child: Icon(icon, color: color, size: 32),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.rajdhani(
-            fontSize: 12,
-            color: AppTheme.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildBus() {
+  Widget _buildFlowArrow() {
     return Container(
-      width: 40,
-      height: 4,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.accentCyan.withOpacity(0.5),
-            AppTheme.accentAmber.withOpacity(0.5),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(2),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Icon(
+        Icons.arrow_forward,
+        color: AppTheme.borderColor,
+        size: 24,
       ),
     );
   }
@@ -438,11 +557,13 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
           else
             const Icon(Icons.play_circle_outline, color: AppTheme.textSecondary),
           const SizedBox(width: 12),
-          Text(
-            _currentStage.isEmpty ? 'Ready to simulate' : _currentStage,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 14,
-              color: _currentStage.isNotEmpty ? AppTheme.accentCyan : AppTheme.textSecondary,
+          Expanded(
+            child: Text(
+              _currentStage.isEmpty ? 'Ready to simulate' : _currentStage,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 14,
+                color: _currentStage.isNotEmpty ? AppTheme.accentCyan : AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -450,7 +571,16 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     );
   }
 
-  Widget _buildCPUUtilization() {
+  Widget _buildCPUUtilizationBar() {
+    String utilLabel = '';
+    if (_cpuUtilization <= 0.3) {
+      utilLabel = _cpuUtilLabels['low']!;
+    } else if (_cpuUtilization <= 0.7) {
+      utilLabel = _cpuUtilLabels['medium']!;
+    } else {
+      utilLabel = _cpuUtilLabels['high']!;
+    }
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.panelDecoration,
@@ -482,6 +612,15 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Text(
+            utilLabel,
+            style: GoogleFonts.rajdhani(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -503,40 +642,77 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     );
   }
 
-  Widget _buildExplanation() {
-    final explanations = [
-      'CPU actively polls the device, wasting cycles waiting. Simple but inefficient.',
-      'Device interrupts CPU when ready, allowing CPU to do other work. More efficient.',
-      'DMA controller transfers data directly to memory. CPU is almost completely free.',
-    ];
-    
+  Widget _buildWastedCounter() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: AppTheme.panelDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        color: AppTheme.accentRed.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.accentRed),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.info_outline, color: AppTheme.accentAmber, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'How it works',
-                style: GoogleFonts.rajdhani(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+          const Icon(Icons.warning, color: AppTheme.accentRed, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wasted Cycles: $_wastedCycles',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.accentRed,
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  'The CPU wasted $_wastedCycles cycles just waiting! Could have done useful work instead.',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            explanations[_selectedMode],
-            style: GoogleFonts.rajdhani(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
-              height: 1.5,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCPUFreedCounter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.accentGreen.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.accentGreen),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: AppTheme.accentGreen, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CPU Freed: $_cpuFreedCycles cycles',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.accentGreen,
+                  ),
+                ),
+                Text(
+                  'The CPU was free to do other useful work for $_cpuFreedCycles cycles while DMA handled the transfer.',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -551,6 +727,150 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
         onPressed: _isAnimating ? null : _startSimulation,
         icon: const Icon(Icons.play_arrow),
         label: const Text('Start Simulation'),
+      ),
+    );
+  }
+
+  Widget _buildColorLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: AppTheme.panelDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildLegendItem('Green', 'Success', AppTheme.accentGreen),
+          _buildLegendItem('Red', 'Fail/Waste', AppTheme.accentRed),
+          _buildLegendItem('Amber', 'In Progress', AppTheme.accentAmber),
+          _buildLegendItem('Cyan', 'Active', AppTheme.accentCyan),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String color, String meaning, Color actualColor) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: actualColor,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          meaning,
+          style: GoogleFonts.rajdhani(
+            fontSize: 10,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildComparisonCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.panelDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.compare_arrows, color: AppTheme.accentCyan, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Comparison',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Table(
+              border: TableBorder.all(color: AppTheme.borderColor, width: 1),
+              columnWidths: const {
+                0: FlexColumnWidth(1.2),
+                1: FlexColumnWidth(1),
+                2: FlexColumnWidth(1),
+                3: FlexColumnWidth(1.2),
+              },
+              children: [
+                TableRow(
+                  children: [
+                    _buildTableHeader('Mode'),
+                    _buildTableHeader('CPU Efficiency'),
+                    _buildTableHeader('Complexity'),
+                    _buildTableHeader('Best For'),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    _buildTableCell('Programmed I/O', AppTheme.textPrimary),
+                    _buildTableCell('Low', AppTheme.accentRed),
+                    _buildTableCell('Easy', AppTheme.accentGreen),
+                    _buildTableCell('Simple apps', AppTheme.textSecondary),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    _buildTableCell('Interrupt', AppTheme.textPrimary),
+                    _buildTableCell('Medium', AppTheme.accentAmber),
+                    _buildTableCell('Medium', AppTheme.accentAmber),
+                    _buildTableCell('Most apps', AppTheme.textSecondary),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    _buildTableCell('DMA', AppTheme.textPrimary),
+                    _buildTableCell('High', AppTheme.accentGreen),
+                    _buildTableCell('Complex', AppTheme.accentRed),
+                    _buildTableCell('Large transfers', AppTheme.textSecondary),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableHeader(String text) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        text,
+        style: GoogleFonts.rajdhani(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.accentCyan,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildTableCell(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        text,
+        style: GoogleFonts.rajdhani(
+          fontSize: 11,
+          color: color,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }

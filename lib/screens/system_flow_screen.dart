@@ -1,3 +1,4 @@
+// ===== FILE: lib/screens/system_flow_screen.dart =====
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -14,34 +15,82 @@ class SystemFlowScreen extends StatefulWidget {
 class _SystemFlowScreenState extends State<SystemFlowScreen>
     with SingleTickerProviderStateMixin {
   int? _selectedComponent;
+  bool _isAnimatingFlow = false;
+  int _flowStep = -1;
   late AnimationController _clockController;
   late Animation<double> _clockAnimation;
+  
+  final List<Map<String, dynamic>> _components = [
+    {
+      'name': 'Input Device',
+      'shortName': 'Input',
+      'description': 'Devices that provide data to the system: keyboard, mouse, scanner',
+      'icon': Icons.input,
+      'color': AppTheme.accentGreen,
+      'analogy': 'like your mouth — you use it to give information to someone',
+      'details': 'Input devices convert physical input into digital data that the CPU can process.',
+    },
+    {
+      'name': 'CPU',
+      'shortName': 'CPU',
+      'description': 'Central Processing Unit - executes instructions',
+      'icon': Icons.memory,
+      'color': AppTheme.accentCyan,
+      'analogy': 'like your brain — it processes everything and makes decisions',
+      'details': 'The CPU fetches, decodes, and executes instructions. It contains the ALU, control unit, and registers.',
+    },
+    {
+      'name': 'Memory (RAM)',
+      'shortName': 'Memory',
+      'description': 'Random Access Memory - stores data and programs',
+      'icon': Icons.sd_storage,
+      'color': AppTheme.accentAmber,
+      'analogy': 'like your short-term memory — holds what you\'re currently thinking about',
+      'details': 'RAM provides fast read/write access to data. It is volatile - data is lost when power is off.',
+    },
+    {
+      'name': 'Output Device',
+      'shortName': 'Output',
+      'description': 'Devices that display or output results: monitor, printer',
+      'icon': Icons.output,
+      'color': AppTheme.accentRed,
+      'analogy': 'like your hands or voice — the results of your thinking',
+      'details': 'Output devices convert digital data into human-readable forms like text, images, or sound.',
+    },
+  ];
 
-  final List<SystemComponent> _components = [
-    SystemComponent(
-      name: 'Input Device',
-      description: 'Devices that provide data to the system: keyboard, mouse, scanner',
-      icon: Icons.input,
-      details: 'Input devices convert physical input into digital data that the CPU can process.',
-    ),
-    SystemComponent(
-      name: 'CPU',
-      description: 'Central Processing Unit - executes instructions',
-      icon: Icons.memory,
-      details: 'The CPU fetches, decodes, and executes instructions. It contains the ALU, control unit, and registers.',
-    ),
-    SystemComponent(
-      name: 'Memory (RAM)',
-      description: 'Random Access Memory - stores data and programs',
-      icon: Icons.sd_storage,
-      details: 'RAM provides fast read/write access to data. It is volatile - data is lost when power is off.',
-    ),
-    SystemComponent(
-      name: 'Output Device',
-      description: 'Devices that display or output results: monitor, printer',
-      icon: Icons.output,
-      details: 'Output devices convert digital data into human-readable forms like text, images, or sound.',
-    ),
+  final List<Map<String, dynamic>> _quizQuestions = [
+    {
+      'question': 'What does the CPU do?',
+      'options': ['Stores data long-term', 'Processes data and runs programs', 'Displays images', 'Connects to the internet'],
+      'correct': 1,
+      'explain': 'The CPU (Central Processing Unit) is like your brain - it processes everything and makes decisions.',
+    },
+    {
+      'question': 'Which is the fastest memory?',
+      'options': ['RAM', 'SSD', 'CPU Registers', 'Hard Drive'],
+      'correct': 2,
+      'explain': 'CPU Registers are the fastest - they\'re built right into the processor.',
+    },
+    {
+      'question': 'What does an input device do?',
+      'options': ['Shows results', 'Stores programs', 'Takes input from user', 'Processes calculations'],
+      'correct': 2,
+      'explain': 'Input devices like keyboards and mice take input from the user and send it to the CPU.',
+    },
+  ];
+  
+  int _currentQuizIndex = 0;
+  int? _selectedQuizAnswer;
+  bool _quizAnswered = false;
+
+  static const List<String> _flowNarrator = [
+    'Starting from Input Device...',
+    'Data travels to CPU via the bus...',
+    'CPU processes the data...',
+    'Data flows to Memory (RAM)...',
+    'Results return to CPU...',
+    'Output sent to Output Device!',
   ];
 
   @override
@@ -61,6 +110,55 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
     super.dispose();
   }
 
+  void _startDataFlow() {
+    setState(() {
+      _isAnimatingFlow = true;
+      _flowStep = 0;
+    });
+    
+    for (int i = 0; i < 6; i++) {
+      Future.delayed(Duration(milliseconds: 1000 * (i + 1)), () {
+        if (mounted && _isAnimatingFlow) {
+          setState(() {
+            _flowStep = i;
+          });
+          if (i == 5) {
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              if (mounted) {
+                setState(() {
+                  _isAnimatingFlow = false;
+                  _flowStep = -1;
+                });
+              }
+            });
+          }
+        }
+      });
+    }
+  }
+
+  void _stopDataFlow() {
+    setState(() {
+      _isAnimatingFlow = false;
+      _flowStep = -1;
+    });
+  }
+
+  void _answerQuiz(int answerIndex) {
+    setState(() {
+      _selectedQuizAnswer = answerIndex;
+      _quizAnswered = true;
+    });
+  }
+
+  void _nextQuestion() {
+    setState(() {
+      _currentQuizIndex = (_currentQuizIndex + 1) % _quizQuestions.length;
+      _selectedQuizAnswer = null;
+      _quizAnswered = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,15 +175,66 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            _buildNarratorPanel(),
+            const SizedBox(height: 16),
             _buildClockVisualizer(),
             const SizedBox(height: 16),
-            _buildSystemDiagram(),
+            _buildSystemArchitecture(),
             const SizedBox(height: 16),
             if (_selectedComponent != null) _buildDetailPanel(),
             const SizedBox(height: 16),
+            _buildDataFlowControls(),
+            const SizedBox(height: 16),
             _buildBusExplanation(),
+            const SizedBox(height: 16),
+            _buildQuizCard(),
+            const SizedBox(height: 16),
+            _buildColorLegend(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNarratorPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2035),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb, color: Color(0xFFF59E0B), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What\'s happening?',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFF59E0B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This is the big picture of how a computer works. Tap a component to learn what it does and how it connects to the others.',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 15,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -142,7 +291,7 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
     );
   }
 
-  Widget _buildSystemDiagram() {
+  Widget _buildSystemArchitecture() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.panelDecoration,
@@ -157,27 +306,32 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildComponent(0),
-              _buildBusColumn(0),
-              _buildComponent(1),
-              _buildBusColumn(1),
-              _buildComponent(2),
-              _buildBusColumn(2),
-              _buildComponent(3),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildComponentBox(0),
+                _buildBusColumn(0),
+                _buildComponentBox(1),
+                _buildBusColumn(1),
+                _buildComponentBox(2),
+                _buildBusColumn(2),
+                _buildComponentBox(3),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildComponent(int index) {
+  Widget _buildComponentBox(int index) {
     final component = _components[index];
     final isSelected = _selectedComponent == index;
+    final isActive = _flowStep == index;
+    final color = component['color'] as Color;
     
     return GestureDetector(
       onTap: () => setState(() {
@@ -185,44 +339,23 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: 60,
-        height: 80,
+        width: 80,
+        height: 100,
         decoration: BoxDecoration(
-          color: isSelected 
-              ? component.icon == Icons.memory 
-                  ? AppTheme.accentCyan.withOpacity(0.2)
-                  : component.icon == Icons.input
-                      ? AppTheme.accentGreen.withOpacity(0.2)
-                      : component.icon == Icons.sd_storage
-                          ? AppTheme.accentAmber.withOpacity(0.2)
-                          : AppTheme.accentRed.withOpacity(0.2)
+          color: isSelected || isActive
+              ? color.withOpacity(0.2)
               : AppTheme.background,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? component.icon == Icons.memory 
-                    ? AppTheme.accentCyan
-                    : component.icon == Icons.input
-                        ? AppTheme.accentGreen
-                        : component.icon == Icons.sd_storage
-                            ? AppTheme.accentAmber
-                            : AppTheme.accentRed
-                : AppTheme.borderColor,
-            width: isSelected ? 2 : 1,
+            color: isSelected || isActive ? color : AppTheme.borderColor,
+            width: isActive ? 3 : (isSelected ? 2 : 1),
           ),
-          boxShadow: isSelected
+          boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: component.icon == Icons.memory 
-                        ? AppTheme.accentCyan
-                        : component.icon == Icons.input
-                            ? AppTheme.accentGreen
-                            : component.icon == Icons.sd_storage
-                                ? AppTheme.accentAmber
-                                : AppTheme.accentRed
-                        .withOpacity(0.5),
-                    blurRadius: 12,
-                    spreadRadius: 2,
+                    color: color.withOpacity(0.5),
+                    blurRadius: 16,
+                    spreadRadius: 4,
                   ),
                 ]
               : null,
@@ -231,27 +364,35 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              component.icon,
-              color: isSelected 
-                  ? component.icon == Icons.memory 
-                      ? AppTheme.accentCyan
-                      : component.icon == Icons.input
-                          ? AppTheme.accentGreen
-                          : component.icon == Icons.sd_storage
-                              ? AppTheme.accentAmber
-                              : AppTheme.accentRed
-                  : AppTheme.textSecondary,
+              component['icon'] as IconData,
+              color: isSelected || isActive ? color : AppTheme.textSecondary,
               size: 28,
             ),
             const SizedBox(height: 4),
             Text(
-              component.name.split(' ').first,
+              component['shortName'] as String,
               style: GoogleFonts.rajdhani(
-                fontSize: 9,
-                color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
+                fontSize: 12,
+                color: isSelected || isActive ? color : AppTheme.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
+            if (isActive)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Active',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 9,
+                    color: color,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -259,19 +400,23 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
   }
 
   Widget _buildBusColumn(int index) {
+    final isActive = (_flowStep == index || _flowStep == index + 1);
+    
     return SizedBox(
       width: 50,
       child: Column(
         children: [
-          _buildBusLine('D', AppTheme.accentCyan),
-          _buildBusLine('A', AppTheme.accentAmber),
-          _buildBusLine('C', AppTheme.accentGreen),
+          _buildBusLine('D', AppTheme.accentCyan, isActive),
+          const SizedBox(height: 2),
+          _buildBusLine('A', AppTheme.accentAmber, isActive),
+          const SizedBox(height: 2),
+          _buildBusLine('C', AppTheme.accentGreen, isActive),
         ],
       ),
     );
   }
 
-  Widget _buildBusLine(String label, Color color) {
+  Widget _buildBusLine(String label, Color color, bool isActive) {
     return Container(
       width: 40,
       height: 24,
@@ -279,50 +424,70 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            color.withOpacity(0.6),
-            color.withOpacity(0.2),
-          ],
+          colors: isActive
+              ? [color, color.withOpacity(0.3)]
+              : [color.withOpacity(0.6), color.withOpacity(0.2)],
         ),
         borderRadius: BorderRadius.circular(2),
       ),
       child: Center(
-        child: Text(
-          label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isActive)
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ).animate(onPlay: (c) => c.repeat()).scale(
+                begin: const Offset(1, 1),
+                end: const Offset(1.5, 1.5),
+                duration: 500.ms,
+              ),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                color: isActive ? Colors.white : color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
-    ).animate(onPlay: (c) => c.repeat()).shimmer(
-      duration: 2000.ms,
-      color: color.withOpacity(0.3),
-    );
+    ).animate(target: isActive ? 1 : 0).fadeIn(duration: 300.ms);
   }
 
   Widget _buildDetailPanel() {
     final component = _components[_selectedComponent!];
+    final color = component['color'] as Color;
     
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(16),
-      decoration: AppTheme.glowCyan,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color, width: 2),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(component.icon, color: AppTheme.accentCyan, size: 24),
+              Icon(component['icon'] as IconData, color: color, size: 24),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  component.name,
+                  component['name'] as String,
                   style: GoogleFonts.rajdhani(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.accentCyan,
+                    color: color,
                   ),
                 ),
               ),
@@ -335,7 +500,7 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            component.description,
+            component['description'] as String,
             style: GoogleFonts.rajdhani(
               fontSize: 14,
               color: AppTheme.textSecondary,
@@ -348,18 +513,86 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
               color: AppTheme.background,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              component.details,
-              style: GoogleFonts.rajdhani(
-                fontSize: 13,
-                color: AppTheme.textPrimary,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'In real life, this is ${component['analogy'] as String}.',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 13,
+                    color: AppTheme.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  component['details'] as String,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.1);
+  }
+
+  Widget _buildDataFlowControls() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.panelDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Data Flow Animation',
+            style: GoogleFonts.rajdhani(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_isAnimatingFlow && _flowStep >= 0)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentCyan.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions, color: AppTheme.accentCyan, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _flowNarrator[_flowStep],
+                      style: GoogleFonts.rajdhani(
+                        fontSize: 14,
+                        color: AppTheme.accentCyan,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _isAnimatingFlow ? _stopDataFlow : _startDataFlow,
+                icon: Icon(_isAnimatingFlow ? Icons.stop : Icons.play_arrow),
+                label: Text(_isAnimatingFlow ? 'Stop' : 'Show Data Flow'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildBusExplanation() {
@@ -431,6 +664,176 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuizCard() {
+    final question = _quizQuestions[_currentQuizIndex];
+    final isCorrect = _selectedQuizAnswer == question['correct'];
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.panelDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.quiz, color: AppTheme.accentAmber, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Quiz Me',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            question['question'] as String,
+            style: GoogleFonts.rajdhani(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...List.generate((question['options'] as List).length, (i) {
+            final option = (question['options'] as List)[i];
+            final isSelected = _selectedQuizAnswer == i;
+            final showResult = _quizAnswered && i == question['correct'];
+            final isWrong = _quizAnswered && isSelected && !isCorrect;
+            
+            return GestureDetector(
+              onTap: _quizAnswered ? null : () => _answerQuiz(i),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: showResult 
+                      ? AppTheme.accentGreen.withOpacity(0.2)
+                      : isWrong 
+                          ? AppTheme.accentRed.withOpacity(0.2)
+                          : isSelected 
+                              ? AppTheme.accentCyan.withOpacity(0.2)
+                              : AppTheme.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: showResult 
+                        ? AppTheme.accentGreen
+                        : isWrong 
+                            ? AppTheme.accentRed
+                            : isSelected 
+                                ? AppTheme.accentCyan
+                                : AppTheme.borderColor,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (showResult)
+                      const Icon(Icons.check, color: AppTheme.accentGreen, size: 16),
+                    if (isWrong)
+                      const Icon(Icons.close, color: AppTheme.accentRed, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        option,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 13,
+                          color: showResult || isWrong 
+                              ? AppTheme.textPrimary 
+                              : AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          if (_quizAnswered) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isCorrect 
+                    ? AppTheme.accentGreen.withOpacity(0.1)
+                    : AppTheme.accentAmber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isCorrect ? Icons.check_circle : Icons.info,
+                    color: isCorrect ? AppTheme.accentGreen : AppTheme.accentAmber,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      question['explain'] as String,
+                      style: GoogleFonts.rajdhani(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _nextQuestion,
+                child: const Text('Next Question'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: AppTheme.panelDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildLegendItem('Green', 'Input', AppTheme.accentGreen),
+          _buildLegendItem('Cyan', 'CPU', AppTheme.accentCyan),
+          _buildLegendItem('Amber', 'Memory', AppTheme.accentAmber),
+          _buildLegendItem('Red', 'Output', AppTheme.accentRed),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String color, String meaning, Color actualColor) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: actualColor,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          meaning,
+          style: GoogleFonts.rajdhani(
+            fontSize: 10,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 
@@ -509,20 +912,6 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
       ),
     );
   }
-}
-
-class SystemComponent {
-  final String name;
-  final String description;
-  final IconData icon;
-  final String details;
-
-  SystemComponent({
-    required this.name,
-    required this.description,
-    required this.icon,
-    required this.details,
-  });
 }
 
 class ClockWavePainter extends CustomPainter {

@@ -1,10 +1,11 @@
+// ===== FILE: lib/screens/cpu_cycle_screen.dart =====
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/instruction.dart';
-import '../widgets/register_box.dart';
+import '../widgets/speed_slider.dart';
 
 class CPUCycleScreen extends StatefulWidget {
   const CPUCycleScreen({super.key});
@@ -23,8 +24,24 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
   Timer? _autoRunTimer;
   int _currentStep = 0;
   String _phase = 'IDLE';
-  String _explanation = 'Press Step to start execution';
+  String _narratorText = 'Press Step to start execution';
   List<Instruction> _instructions = [];
+  int _speedMs = 1000;
+  int _previousPC = 0;
+  int _previousIR = 0;
+  int _previousMAR = 0;
+  int _previousMDR = 0;
+  int _previousACC = 0;
+  int _memoryCellHighlighted = -1;
+
+  static const Map<String, String> _narratorPhrases = {
+    'FETCH': 'The CPU is going to pick up the next instruction from memory. It\'s like looking at your to-do list to see what task comes next.',
+    'DECODE': 'The CPU reads the instruction and figures out what it means — like reading a recipe step before cooking.',
+    'EXECUTE': 'The CPU is doing the actual work — performing the calculation or operation.',
+    'STORE': 'The result is being saved so it can be used later.',
+    'IDLE': 'Press Step or Auto Run to start execution.',
+    'HALT': 'Program execution complete! All instructions have been processed.',
+  };
 
   @override
   void initState() {
@@ -44,37 +61,41 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
   void _step() {
     if (_instructions.isEmpty) {
       setState(() {
-        _explanation = 'No instructions to execute';
+        _narratorText = 'No instructions to execute';
       });
       return;
     }
 
+    _savePreviousValues();
+    
     setState(() {
       switch (_currentStep % 4) {
         case 0:
           _phase = 'FETCH';
           _cpuState.mar = _cpuState.pc;
           _cpuState.mdr = _cpuState.memory[_cpuState.pc];
-          _explanation = 'FETCH: MAR ← PC, MDR ← Memory[PC]';
+          _memoryCellHighlighted = _cpuState.pc;
+          _narratorText = _narratorPhrases['FETCH']!;
           break;
         case 1:
           _phase = 'DECODE';
           _cpuState.ir = _cpuState.mdr;
           _cpuState.pc++;
-          _explanation = 'DECODE: IR ← MDR, PC ← PC + 1';
+          _narratorText = _narratorPhrases['DECODE']!;
           break;
         case 2:
           _phase = 'EXECUTE';
           _executeInstruction();
-          _explanation = 'EXECUTE: Performing ${_instructions[_cpuState.programCounter].mnemonic}';
+          _narratorText = _narratorPhrases['EXECUTE']!;
           break;
         case 3:
           _phase = 'STORE';
-          _explanation = 'STORE: Result written to accumulator';
+          _narratorText = _narratorPhrases['STORE']!;
           _cpuState.programCounter++;
+          _memoryCellHighlighted = -1;
           if (_cpuState.programCounter >= _instructions.length) {
             _phase = 'HALT';
-            _explanation = 'Program execution complete';
+            _narratorText = _narratorPhrases['HALT']!;
             _autoRun = false;
             _autoRunTimer?.cancel();
           }
@@ -82,6 +103,14 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
       }
       _currentStep++;
     });
+  }
+
+  void _savePreviousValues() {
+    _previousPC = _cpuState.pc;
+    _previousIR = _cpuState.ir;
+    _previousMAR = _cpuState.mar;
+    _previousMDR = _cpuState.mdr;
+    _previousACC = _cpuState.acc;
   }
 
   void _executeInstruction() {
@@ -117,7 +146,7 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
     setState(() {
       _autoRun = !_autoRun;
       if (_autoRun) {
-        _autoRunTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
+        _autoRunTimer = Timer.periodic(Duration(milliseconds: _speedMs), (_) {
           if (_phase != 'HALT' && _phase != 'IDLE') {
             _step();
           } else {
@@ -137,9 +166,15 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
       _parseProgram();
       _currentStep = 0;
       _phase = 'IDLE';
-      _explanation = 'Press Step to start execution';
+      _narratorText = 'Press Step or Auto Run to start execution.';
       _autoRun = false;
       _autoRunTimer?.cancel();
+      _memoryCellHighlighted = -1;
+      _previousPC = 0;
+      _previousIR = 0;
+      _previousMAR = 0;
+      _previousMDR = 0;
+      _previousACC = 0;
     });
   }
 
@@ -166,21 +201,126 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildNarratorPanel(),
+            const SizedBox(height: 16),
+            _buildStepLabel(),
+            const SizedBox(height: 16),
             _buildClockPulse(),
             const SizedBox(height: 16),
             _buildPhaseIndicator(),
             const SizedBox(height: 16),
-            _buildExplanationPanel(),
-            const SizedBox(height: 16),
             _buildRegistersPanel(),
             const SizedBox(height: 16),
-            _buildProgramEditor(),
+            _buildProgramView(),
             const SizedBox(height: 16),
             _buildMemoryView(),
             const SizedBox(height: 16),
+            _buildSpeedSlider(),
+            const SizedBox(height: 16),
             _buildControls(),
+            const SizedBox(height: 16),
+            _buildColorLegend(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNarratorPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2035),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lightbulb, color: Color(0xFFF59E0B), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What\'s happening?',
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFF59E0B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _narratorText,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 15,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepLabel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: AppTheme.panelDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(4, (i) {
+          final stepNum = i + 1;
+          final isActive = _phase == ['FETCH', 'DECODE', 'EXECUTE', 'STORE'][i];
+          final isPast = _currentStep > (i + 1);
+          return Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isActive 
+                      ? AppTheme.accentAmber 
+                      : isPast 
+                          ? AppTheme.accentGreen 
+                          : AppTheme.background,
+                  border: Border.all(
+                    color: isActive || isPast 
+                        ? (isActive ? AppTheme.accentAmber : AppTheme.accentGreen) 
+                        : AppTheme.borderColor,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '$stepNum',
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isActive || isPast ? Colors.white : AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              if (i < 3) ...[
+                const SizedBox(width: 4),
+                Container(
+                  width: 30,
+                  height: 2,
+                  color: isPast ? AppTheme.accentGreen : AppTheme.borderColor,
+                ),
+                const SizedBox(width: 4),
+              ],
+            ],
+          );
+        }),
       ),
     );
   }
@@ -243,60 +383,28 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: phases.map((p) {
           final isActive = _phase == p;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: isActive
-                ? AppTheme.glowCyan
-                : BoxDecoration(
-                    color: AppTheme.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.borderColor),
-                  ),
-            child: Text(
-              p,
-              style: GoogleFonts.rajdhani(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isActive ? AppTheme.accentCyan : AppTheme.textSecondary,
+          return GestureDetector(
+            onTap: () => _showTermTooltip(p),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: isActive
+                  ? AppTheme.glowCyan
+                  : BoxDecoration(
+                      color: AppTheme.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+              child: Text(
+                p,
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? AppTheme.accentCyan : AppTheme.textSecondary,
+                ),
               ),
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildExplanationPanel() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.panelDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.lightbulb_outline, color: AppTheme.accentAmber, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Current Operation',
-                style: GoogleFonts.rajdhani(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _explanation,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 14,
-              color: AppTheme.accentCyan,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -320,29 +428,35 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
           Row(
             children: [
               Expanded(
-                child: RegisterBox(
+                child: _buildRegisterCard(
                   label: 'PC',
+                  plainName: 'Program Counter',
+                  analogy: 'your bookmark',
                   value: _cpuState.pc.toString(),
+                  oldValue: _previousPC.toString(),
                   isActive: _phase == 'FETCH',
-                  color: AppTheme.accentCyan,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: RegisterBox(
+                child: _buildRegisterCard(
                   label: 'IR',
+                  plainName: 'Instruction Register',
+                  analogy: 'the current task',
                   value: _cpuState.ir.toString(),
+                  oldValue: _previousIR.toString(),
                   isActive: _phase == 'DECODE',
-                  color: AppTheme.accentAmber,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: RegisterBox(
+                child: _buildRegisterCard(
                   label: 'MAR',
+                  plainName: 'Memory Address Register',
+                  analogy: 'the address you\'re looking up',
                   value: _cpuState.mar.toString(),
+                  oldValue: _previousMAR.toString(),
                   isActive: _phase == 'FETCH',
-                  color: AppTheme.accentGreen,
                 ),
               ),
             ],
@@ -351,20 +465,24 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
           Row(
             children: [
               Expanded(
-                child: RegisterBox(
+                child: _buildRegisterCard(
                   label: 'MDR',
+                  plainName: 'Memory Data Register',
+                  analogy: 'what you found at that address',
                   value: _cpuState.mdr.toString(),
+                  oldValue: _previousMDR.toString(),
                   isActive: _phase == 'FETCH',
-                  color: AppTheme.accentRed,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: RegisterBox(
+                child: _buildRegisterCard(
                   label: 'ACC',
+                  plainName: 'Accumulator',
+                  analogy: 'your running total/scratchpad',
                   value: _cpuState.acc.toString(),
+                  oldValue: _previousACC.toString(),
                   isActive: _phase == 'EXECUTE' || _phase == 'STORE',
-                  color: AppTheme.accentCyan,
                 ),
               ),
             ],
@@ -374,7 +492,90 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
     );
   }
 
-  Widget _buildProgramEditor() {
+  Widget _buildRegisterCard({
+    required String label,
+    required String plainName,
+    required String analogy,
+    required String value,
+    required String oldValue,
+    required bool isActive,
+  }) {
+    final hasChanged = value != oldValue && _currentStep > 0 && _phase != 'IDLE';
+    return GestureDetector(
+      onTap: () => _showTermBottomSheet(label, plainName, analogy),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.accentCyan.withOpacity(0.1) : AppTheme.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? AppTheme.accentCyan : AppTheme.borderColor,
+            width: isActive ? 2 : 1,
+          ),
+          boxShadow: isActive ? AppTheme.glowCyan.boxShadow : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? AppTheme.accentCyan : AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.help_outline,
+                  size: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (hasChanged)
+              Row(
+                children: [
+                  Text(
+                    oldValue,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 16,
+                      color: AppTheme.accentRed,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward, size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    value,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.accentGreen,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text(
+                value,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgramView() {
+    final currentInstrIndex = _cpuState.programCounter;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.panelDecoration,
@@ -395,24 +596,56 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Available instructions: LOAD, ADD, SUB, STORE, JMP, HALT',
-            style: GoogleFonts.rajdhani(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-            ),
-          ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _programController,
-            maxLines: 5,
-            style: GoogleFonts.jetBrainsMono(fontSize: 14),
-            decoration: const InputDecoration(
-              hintText: 'Enter instructions (one per line)',
-            ),
-            onChanged: (_) => _parseProgram(),
-          ),
+          ...List.generate(_instructions.length, (i) {
+            final instr = _instructions[i];
+            final isCurrent = i == currentInstrIndex && (_phase == 'FETCH' || _phase == 'DECODE');
+            final isPast = i < currentInstrIndex;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isCurrent 
+                    ? AppTheme.accentAmber.withOpacity(0.2) 
+                    : isPast 
+                        ? AppTheme.accentGreen.withOpacity(0.1) 
+                        : AppTheme.background,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isCurrent 
+                      ? AppTheme.accentAmber 
+                      : isPast 
+                          ? AppTheme.accentGreen 
+                          : AppTheme.borderColor,
+                  width: isCurrent ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    '${i + 1}.',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    instr.display,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 14,
+                      color: isCurrent 
+                          ? AppTheme.accentAmber 
+                          : isPast 
+                              ? AppTheme.accentGreen 
+                              : AppTheme.textPrimary,
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -426,7 +659,7 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Memory (16 bytes)',
+            'Memory (16 cells)',
             style: GoogleFonts.rajdhani(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -438,37 +671,100 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
             spacing: 8,
             runSpacing: 8,
             children: List.generate(16, (i) {
-              return Container(
-                width: 50,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppTheme.borderColor),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      '$i',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        color: AppTheme.textSecondary,
-                      ),
+              final isHighlighted = i == _memoryCellHighlighted;
+              return GestureDetector(
+                onTap: () => _showMemoryCellTooltip(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 50,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isHighlighted 
+                        ? AppTheme.accentCyan.withOpacity(0.2) 
+                        : AppTheme.background,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isHighlighted ? AppTheme.accentCyan : AppTheme.borderColor,
+                      width: isHighlighted ? 2 : 1,
                     ),
-                    Text(
-                      '${_cpuState.memory[i]}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
-                        color: AppTheme.accentCyan,
+                    boxShadow: isHighlighted
+                        ? [
+                            BoxShadow(
+                              color: AppTheme.accentCyan.withOpacity(0.5),
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '$i',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        '${_cpuState.memory[i]}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 12,
+                          color: isHighlighted ? AppTheme.accentCyan : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
           ),
+          if (_memoryCellHighlighted >= 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentCyan.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: AppTheme.accentCyan, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Currently reading Cell $_memoryCellHighlighted, which contains the value ${_cpuState.memory[_memoryCellHighlighted]}',
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 13,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSpeedSlider() {
+    return SpeedSlider(
+      speedMs: _speedMs,
+      onSpeedChanged: (speed) {
+        setState(() {
+          _speedMs = speed;
+          if (_autoRun) {
+            _autoRunTimer?.cancel();
+            _autoRunTimer = Timer.periodic(Duration(milliseconds: _speedMs), (_) {
+              if (_phase != 'HALT' && _phase != 'IDLE') {
+                _step();
+              } else {
+                _autoRun = false;
+                _autoRunTimer?.cancel();
+              }
+            });
+          }
+        });
+      },
     );
   }
 
@@ -495,6 +791,146 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
           label: const Text('Reset'),
         ),
       ],
+    );
+  }
+
+  Widget _buildColorLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: AppTheme.panelDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildLegendItem('Green', 'Success/Hit'),
+          _buildLegendItem('Red', 'Fail/Miss'),
+          _buildLegendItem('Amber', 'In Progress'),
+          _buildLegendItem('Cyan', 'Active'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String color, String meaning) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color == 'Green' ? AppTheme.accentGreen : 
+                   color == 'Red' ? AppTheme.accentRed : 
+                   color == 'Amber' ? AppTheme.accentAmber : AppTheme.accentCyan,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          meaning,
+          style: GoogleFonts.rajdhani(
+            fontSize: 10,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTermBottomSheet(String term, String plainName, String analogy) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              term,
+              style: GoogleFonts.rajdhani(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.accentCyan,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '($plainName)',
+              style: GoogleFonts.rajdhani(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.lightbulb_outline, color: AppTheme.accentAmber, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$term is like $analogy.',
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 16,
+                      color: AppTheme.textPrimary,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTermTooltip(String term) {
+    final Map<String, Map<String, String>> termInfo = {
+      'FETCH': {'name': 'Fetch Phase', 'analogy': 'looking up what task to do next on your to-do list'},
+      'DECODE': {'name': 'Decode Phase', 'analogy': 'reading a recipe and understanding the steps'},
+      'EXECUTE': {'name': 'Execute Phase', 'analogy': 'actually cooking the meal'},
+      'STORE': {'name': 'Store Phase', 'analogy': 'putting the finished dish in the fridge to save it'},
+    };
+    final info = termInfo[term]!;
+    _showTermBottomSheet(term, info['name']!, info['analogy']!);
+  }
+
+  void _showMemoryCellTooltip(int cell) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Memory Cell $cell',
+              style: GoogleFonts.rajdhani(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.accentCyan,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This memory cell holds the value ${_cpuState.memory[cell]}. In a real computer, this would be a location in RAM where instructions or data are stored.',
+              style: GoogleFonts.rajdhani(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

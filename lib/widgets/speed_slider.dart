@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 class SpeedSlider extends StatefulWidget {
-  final double value;
-  final ValueChanged<double> onChanged;
+  final int speedMs;
+  final ValueChanged<int> onSpeedChanged;
 
   const SpeedSlider({
     super.key,
-    required this.value,
-    required this.onChanged,
+    required this.speedMs,
+    required this.onSpeedChanged,
   });
 
   @override
@@ -17,70 +17,103 @@ class SpeedSlider extends StatefulWidget {
 }
 
 class _SpeedSliderState extends State<SpeedSlider> {
-  double _currentValue = 1.0;
+  double _sliderValue = 0.5;
 
   @override
   void initState() {
     super.initState();
-    _currentValue = widget.value;
+    _sliderValue = _mapSpeedToSlider(widget.speedMs);
+  }
+
+  double _mapSpeedToSlider(int ms) {
+    return 1.0 - ((ms - 300) / 1700.0);
+  }
+
+  int _mapSliderToSpeed(double value) {
+    return (2000 - (value * 1700)).round().clamp(300, 2000);
+  }
+
+  String _getSpeedLabel(int ms) {
+    if (ms >= 1500) return 'Slow';
+    if (ms >= 800) return 'Medium';
+    return 'Fast';
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.speed, color: AppTheme.accentCyan, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Speed',
-            style: GoogleFonts.rajdhani(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+          Row(
+            children: [
+              const Icon(Icons.speed, color: AppTheme.accentCyan, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Speed Control',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _getSpeedLabel(widget.speedMs),
+                style: GoogleFonts.rajdhani(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accentAmber,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                'Slow',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _sliderValue,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: (value) {
+                    setState(() {
+                      _sliderValue = value;
+                    });
+                    widget.onSpeedChanged(_mapSliderToSpeed(value));
+                  },
+                  activeColor: AppTheme.accentCyan,
+                  inactiveColor: AppTheme.borderColor,
+                ),
+              ),
+              Text(
+                'Fast',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          Center(
+            child: Text(
+              '${widget.speedMs}ms per step',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          _buildSpeedButton(0.5, 'Slow'),
-          _buildSpeedButton(1.0, 'Normal'),
-          _buildSpeedButton(2.0, 'Fast'),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSpeedButton(double speed, String label) {
-    final isSelected = _currentValue == speed;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _currentValue = speed;
-          });
-          widget.onChanged(speed);
-        },
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.accentCyan.withOpacity(0.2) : Colors.transparent,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: isSelected ? AppTheme.accentCyan : AppTheme.borderColor,
-            ),
-          ),
-          child: Text(
-            label,
-            style: GoogleFonts.rajdhani(
-              fontSize: 12,
-              color: isSelected ? AppTheme.accentCyan : AppTheme.textSecondary,
-            ),
-          ),
-        ),
       ),
     );
   }
