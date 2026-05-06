@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/cache_state.dart';
@@ -44,14 +43,6 @@ class _CacheToolScreenState extends State<CacheToolScreen> {
       );
       _accessHistory = [];
       _currentAccessIndex = -1;
-    });
-  }
-
-  void _accessAddress(int address) {
-    setState(() {
-      _cacheState.access(address);
-      _accessHistory.add(address);
-      _currentAccessIndex = _accessHistory.length - 1;
     });
   }
 
