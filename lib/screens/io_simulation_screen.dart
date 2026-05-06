@@ -19,7 +19,7 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
   double _cpuUtilization = 0;
   String _currentStage = '';
   String _narratorText = '';
-  final List<String> _modes = ['Programmed I/O', 'Interrupt-Driven', 'DMA'];
+  final List<String> _modes = ['Prog I/O', 'Interrupt', 'DMA'];
   final List<String> _devices = ['Keyboard', 'Disk', 'Network'];
   int _selectedDevice = 0;
   late AnimationController _progressController;
@@ -317,30 +317,34 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
             ),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<int>(
-            segments: _modes
-                .asMap()
-                .entries
-                .map((m) => ButtonSegment(
-                      value: m.key,
-                      label: Text(m.value, style: const TextStyle(fontSize: 12)),
-                    ))
-                .toList(),
-            selected: {_selectedMode},
-            onSelectionChanged: (set) {
-              setState(() {
-                _selectedMode = set.first;
-                _narratorText = _narratorPhrases[set.first];
-                _resetSimulation();
-              });
-            },
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppTheme.accentCyan.withOpacity(0.2);
-                }
-                return AppTheme.background;
-              }),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: SegmentedButton<int>(
+              segments: _modes
+                  .asMap()
+                  .entries
+                  .map((m) => ButtonSegment(
+                        value: m.key,
+                        label: Text(m.value, style: const TextStyle(fontSize: 12)),
+                      ))
+                  .toList(),
+              selected: {_selectedMode},
+              onSelectionChanged: (set) {
+                setState(() {
+                  _selectedMode = set.first;
+                  _narratorText = _narratorPhrases[set.first];
+                  _resetSimulation();
+                });
+              },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppTheme.accentCyan.withOpacity(0.2);
+                  }
+                  return AppTheme.background;
+                }),
+              ),
             ),
           ),
         ],
@@ -735,37 +739,33 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
         children: [
-          _buildLegendItem('Green', 'Success', AppTheme.accentGreen),
-          _buildLegendItem('Red', 'Fail/Waste', AppTheme.accentRed),
-          _buildLegendItem('Amber', 'In Progress', AppTheme.accentAmber),
-          _buildLegendItem('Cyan', 'Active', AppTheme.accentCyan),
+          _buildLegendItem('Green', 'Success'),
+          _buildLegendItem('Red', 'Fail/Waste'),
+          _buildLegendItem('Amber', 'In Progress'),
+          _buildLegendItem('Cyan', 'Active'),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(String color, String meaning, Color actualColor) {
+  Widget _buildLegendItem(String color, String meaning) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: actualColor,
+            color: color == 'Green' ? AppTheme.accentGreen : color == 'Red' ? AppTheme.accentRed : color == 'Amber' ? AppTheme.accentAmber : AppTheme.accentCyan,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          meaning,
-          style: GoogleFonts.rajdhani(
-            fontSize: 10,
-            color: AppTheme.textSecondary,
-          ),
-        ),
+        Text(meaning, style: GoogleFonts.rajdhani(fontSize: 10, color: AppTheme.textSecondary), overflow: TextOverflow.ellipsis),
       ],
     );
   }
@@ -848,29 +848,31 @@ class _IOSimulationScreenState extends State<IOSimulationScreen>
 
   Widget _buildTableHeader(String text) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4),
       child: Text(
         text,
         style: GoogleFonts.rajdhani(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
           color: AppTheme.accentCyan,
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
   Widget _buildTableCell(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4),
       child: Text(
         text,
         style: GoogleFonts.rajdhani(
-          fontSize: 11,
+          fontSize: 10,
           color: color,
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

@@ -10,7 +10,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CPU Instruction Cycle Simulation'),
+        title: const Text('CPU Simulator'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -83,6 +83,7 @@ class _MainScreenState extends State<MainScreen> {
             },
             backgroundColor: const Color(0xFF111827),
             indicatorColor: const Color(0xFF00F5D4).withOpacity(0.3),
+            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined, color: Colors.white70),
@@ -92,7 +93,7 @@ class _MainScreenState extends State<MainScreen> {
               NavigationDestination(
                 icon: Icon(Icons.memory_outlined, color: Colors.white70),
                 selectedIcon: Icon(Icons.memory, color: Color(0xFF00F5D4)),
-                label: 'CPU Cycle',
+                label: 'CPU',
               ),
               NavigationDestination(
                 icon: Icon(Icons.layers_outlined, color: Colors.white70),
@@ -117,7 +118,7 @@ class _MainScreenState extends State<MainScreen> {
               NavigationDestination(
                 icon: Icon(Icons.account_tree_outlined, color: Colors.white70),
                 selectedIcon: Icon(Icons.account_tree, color: Color(0xFF00F5D4)),
-                label: 'System',
+                label: 'Flow',
               ),
             ],
           ),

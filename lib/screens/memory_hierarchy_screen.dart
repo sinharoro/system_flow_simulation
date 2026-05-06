@@ -262,17 +262,17 @@ class _MemoryHierarchyScreenState extends State<MemoryHierarchyScreen>
               children: List.generate(_levels.length, (index) {
                 final reversedIndex = _levels.length - 1 - index;
                 final level = _levels[reversedIndex];
-                final width = 0.3 + (reversedIndex * 0.18);
+                final width = 0.4 + (reversedIndex * 0.15);
                 final isActive = _currentLevel == reversedIndex;
                 
                 return Positioned(
-                  bottom: reversedIndex * 56.0,
+                  bottom: reversedIndex * 65.0,
                   child: GestureDetector(
                     onTap: () => _showLevelTooltip(level),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      width: 280 * width,
-                      height: 48,
+                      width: 300 * width,
+                      height: 60,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -296,6 +296,7 @@ class _MemoryHierarchyScreenState extends State<MemoryHierarchyScreen>
                             : null,
                       ),
                       child: Stack(
+                        clipBehavior: Clip.none,
                         children: [
                           if (isActive)
                             Positioned(

@@ -383,23 +383,25 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: phases.map((p) {
           final isActive = _phase == p;
-          return GestureDetector(
-            onTap: () => _showTermTooltip(p),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: isActive
-                  ? AppTheme.glowCyan
-                  : BoxDecoration(
-                      color: AppTheme.background,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.borderColor),
-                    ),
-              child: Text(
-                p,
-                style: GoogleFonts.rajdhani(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isActive ? AppTheme.accentCyan : AppTheme.textSecondary,
+          return Flexible(
+            child: GestureDetector(
+              onTap: () => _showTermTooltip(p),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                decoration: isActive
+                    ? AppTheme.glowCyan
+                    : BoxDecoration(
+                        color: AppTheme.background,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.borderColor),
+                      ),
+                child: Text(
+                  p,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? AppTheme.accentCyan : AppTheme.textSecondary,
+                  ),
                 ),
               ),
             ),
@@ -537,35 +539,41 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
             ),
             const SizedBox(height: 4),
             if (hasChanged)
-              Row(
-                children: [
-                  Text(
-                    oldValue,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 16,
-                      color: AppTheme.accentRed,
-                      decoration: TextDecoration.lineThrough,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  children: [
+                    Text(
+                      oldValue,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 16,
+                        color: AppTheme.accentRed,
+                        decoration: TextDecoration.lineThrough,
+                      ),
                     ),
-                  ),
-                  const Icon(Icons.arrow_forward, size: 14, color: AppTheme.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    value,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentGreen,
+                    const Icon(Icons.arrow_forward, size: 14, color: AppTheme.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      value,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accentGreen,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               )
             else
-              Text(
-                value,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               ),
           ],
@@ -798,8 +806,9 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
         children: [
           _buildLegendItem('Green', 'Success/Hit'),
           _buildLegendItem('Red', 'Fail/Miss'),
@@ -812,6 +821,7 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
 
   Widget _buildLegendItem(String color, String meaning) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
@@ -830,6 +840,7 @@ class _CPUCycleScreenState extends State<CPUCycleScreen> {
             fontSize: 10,
             color: AppTheme.textSecondary,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

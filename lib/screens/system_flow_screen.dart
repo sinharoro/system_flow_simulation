@@ -292,42 +292,53 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
   }
 
   Widget _buildSystemArchitecture() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.panelDecoration,
-      child: Column(
-        children: [
-          Text(
-            'Computer System Architecture',
-            style: GoogleFonts.rajdhani(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final minBoxWidth = ((availableWidth - 64) / 7).clamp(60.0, 80.0);
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.panelDecoration,
+          child: Column(
+            children: [
+              Text(
+                'Computer System Architecture',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ConstrainedBox(
+                constraints: BoxConstraints(minWidth: double.infinity),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const ClampingScrollPhysics(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildComponentBox(0, minBoxWidth),
+                      _buildBusColumn(0),
+                      _buildComponentBox(1, minBoxWidth),
+                      _buildBusColumn(1),
+                      _buildComponentBox(2, minBoxWidth),
+                      _buildBusColumn(2),
+                      _buildComponentBox(3, minBoxWidth),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildComponentBox(0),
-                _buildBusColumn(0),
-                _buildComponentBox(1),
-                _buildBusColumn(1),
-                _buildComponentBox(2),
-                _buildBusColumn(2),
-                _buildComponentBox(3),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildComponentBox(int index) {
+  Widget _buildComponentBox(int index, double minBoxWidth) {
     final component = _components[index];
     final isSelected = _selectedComponent == index;
     final isActive = _flowStep == index;
@@ -339,7 +350,7 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: 80,
+        width: minBoxWidth,
         height: 100,
         decoration: BoxDecoration(
           color: isSelected || isActive
@@ -802,8 +813,9 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
         children: [
           _buildLegendItem('Green', 'Input', AppTheme.accentGreen),
           _buildLegendItem('Cyan', 'CPU', AppTheme.accentCyan),
@@ -816,6 +828,7 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
 
   Widget _buildLegendItem(String color, String meaning, Color actualColor) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
@@ -832,6 +845,7 @@ class _SystemFlowScreenState extends State<SystemFlowScreen>
             fontSize: 10,
             color: AppTheme.textSecondary,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

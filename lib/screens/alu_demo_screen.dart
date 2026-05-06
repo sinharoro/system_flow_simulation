@@ -543,17 +543,20 @@ class _ALUDemoScreenState extends State<ALUDemoScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: List.generate(8, (i) {
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: List.generate(8, (i) {
                     return Container(
                       width: 32,
                       height: 32,
@@ -673,6 +676,7 @@ class _ALUDemoScreenState extends State<ALUDemoScreen> {
                 ),
               ],
             ),
+          ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -796,26 +800,30 @@ class _ALUDemoScreenState extends State<ALUDemoScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
         children: [
-          _buildLegendItem('Cyan', 'Active', AppTheme.accentCyan),
-          _buildLegendItem('Amber', 'Operand', AppTheme.accentAmber),
-          _buildLegendItem('Red', 'Carry', AppTheme.accentRed),
-          _buildLegendItem('Green', 'Flag ON', AppTheme.accentGreen),
+          _buildLegendItem('Cyan', 'Active'),
+          _buildLegendItem('Amber', 'Operand'),
+          _buildLegendItem('Red', 'Carry'),
+          _buildLegendItem('Green', 'Flag ON'),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(String color, String meaning, Color actualColor) {
+  Widget _buildLegendItem(String color, String meaning) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: actualColor,
+            color: color == 'Cyan' ? AppTheme.accentCyan :
+                   color == 'Amber' ? AppTheme.accentAmber :
+                   color == 'Red' ? AppTheme.accentRed : AppTheme.accentGreen,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -826,6 +834,7 @@ class _ALUDemoScreenState extends State<ALUDemoScreen> {
             fontSize: 10,
             color: AppTheme.textSecondary,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

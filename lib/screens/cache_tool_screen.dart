@@ -771,8 +771,9 @@ class _CacheToolScreenState extends State<CacheToolScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: AppTheme.panelDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
         children: [
           _buildLegendItem('Green', 'HIT', AppTheme.accentGreen),
           _buildLegendItem('Red', 'MISS', AppTheme.accentRed),
@@ -785,23 +786,11 @@ class _CacheToolScreenState extends State<CacheToolScreen> {
 
   Widget _buildLegendItem(String color, String meaning, Color actualColor) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: actualColor,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: actualColor, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 4),
-        Text(
-          meaning,
-          style: GoogleFonts.rajdhani(
-            fontSize: 10,
-            color: AppTheme.textSecondary,
-          ),
-        ),
+        Text(meaning, style: GoogleFonts.rajdhani(fontSize: 10, color: AppTheme.textSecondary), overflow: TextOverflow.ellipsis),
       ],
     );
   }
